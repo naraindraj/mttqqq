@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M2M Publisher Dashboard</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { color: #1a73e8; margin-top: 0; border-bottom: 2px solid #e8f0fe; padding-bottom: 10px; }
+        .status-box { margin-bottom: 20px; font-weight: bold; padding: 8px; border-radius: 4px; text-align: center; }
+        .connected { background: #e6ffed; color: #28a745; }
+        .disconnected { background: #ffeef0; color: #d73a49; }
+        label { display: block; margin-bottom: 5px; font-size: 0.9rem; color: #555; }
+        input, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        button { width: 100%; padding: 12px; background-color: #1a73e8; color: white; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; transition: background 0.3s; }
+        button:hover { background-color: #1557b0; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>M2M Publisher</h2>
+    <div id="status" class="status-box disconnected">Status: Disconnecting...</div>
+    
+    <label for="topic">Topic</label>
+    <input type="text" id="topic" value="RTC/CBLOCK/CX203">
+    
+    <label for="message">Message</label>
+    <textarea id="message" rows="3" placeholder="Type your payload here..."></textarea>
+    
+    <button onclick="sendData()">Publish to HiveMQ</button>
+</div>
+
+<script>
+    // Configuration
+    const host = 'wss://broker.hivemq.com:8884/mqtt';
+    const options = {
+        keepalive: 60,
+        clientId: 'mqtt_web_' + Math.random().toString(16).substring(2, 10),
+        protocolId: 'MQTT',
+        protocolVersion: 4,
+        clean: true,
+        reconnectPeriod: 1000,
+        connectTimeout: 30 * 1000,
+    };
+
+    console.log('Connecting to HiveMQ...');
+    const client = mqtt.connect(host, options);
+
+    const statusDiv = document.getElementById('status');
+
+    client.on('connect', () => {
+        statusDiv.innerText = "Status: Connected";
+        statusDiv.className = "status-box connected";
+        console.log('Connected!');
+    });
+
+    client.on('error', (err) => {
+        console.error('Connection error: ', err);
+        statusDiv.innerText = "Status: Error";
+        statusDiv.className = "status-box disconnected";
+    });
+
+    client.on('close', () => {
+        statusDiv.innerText = "Status: Disconnected";
+        statusDiv.className = "status-box disconnected";
+    });
+
+    function sendData() {
+        const topic = document.getElementById('topic').value;
+        const message = document.getElementById('message').value;
+
+        if (client.connected) {
+            client.publish(topic, message, { qos: 0, retain: false }, (error) => {
+                if (error) {
+                    console.error('Publish error:', error);
+                } else {
+                    console.log('Message published to', topic);
+                    // Clear the message box after sending
+                    document.getElementById('message').value = '';
+                }
+            });
+        } else {
+            alert('Wait for connection to stabilize!');
+        }
+    }
+</script>
+
+</body>
+</html>
